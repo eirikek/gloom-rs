@@ -57,8 +57,6 @@ fn offset<T>(n: u32) -> *const c_void {
 // Get a null pointer (equivalent to an offset of 0)
 // ptr::null()
 
-// Task 1a
-// == // Generate your VAO here
 unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>) -> u32 {
     unsafe {
         let mut vao = 0;
@@ -227,20 +225,37 @@ fn main() {
         }
 
         let vertices: Vec<f32> = vec![
-            -0.8, -0.1, 0.5, 0.2, -0.1, 0.5, -0.3, 0.8, 0.5, -0.2, -0.1, -0.5, 0.8, -0.1, -0.5,
-            0.3, 0.8, -0.5, -0.45, -0.55, 0.0, 0.45, -0.55, 0.0, 0.0, 0.25, 0.0,
+            -0.8, -0.1, 0.5, 
+            0.2, -0.1, 0.5, 
+            -0.3, 0.8, 0.5, 
+            
+            -0.2, -0.1, -0.5, 
+            0.8, -0.1, -0.5,
+            0.3, 0.8, -0.5, 
+            
+            -0.45, -0.55, 0.0, 
+            0.45, -0.55, 0.0, 
+            0.0, 0.25, 0.0,
         ];
 
         let colors: Vec<f32> = vec![
-            0.0, 0.0, 1.0, 0.5, 0.0, 0.0, 1.0, 0.5, 0.0, 0.0, 1.0, 0.5, 1.0, 0.0, 0.0, 0.5, 1.0,
-            0.0, 0.0, 0.5, 1.0, 0.0, 0.0, 0.5, 0.0, 1.0, 0.0, 0.5, 0.0, 1.0, 0.0, 0.5, 0.0, 1.0,
-            0.0, 0.5,
+            0.0, 0.0, 1.0, 0.5, 
+            0.0, 0.0, 1.0, 0.5, 
+            0.0, 0.0, 1.0, 0.5, 
+            
+            1.0, 0.0, 0.0, 0.5, 
+            1.0, 0.0, 0.0, 0.5, 
+            1.0, 0.0, 0.0, 0.5, 
+            
+            0.0, 1.0, 0.0, 0.5, 
+            0.0, 1.0, 0.0, 0.5, 
+            0.0, 1.0, 0.0, 0.5,
         ];
+
         let indices: Vec<u32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
 
         let my_vao = unsafe { create_vao(&vertices, &indices, &colors) };
 
-        // Task 1b
         let simple_shader = unsafe {
             shader::ShaderBuilder::new()
                 .attach_file("shaders/simple.vert")
@@ -252,7 +267,10 @@ fn main() {
 
         unsafe {
             let identity_matrix: [f32; 16] = [
-                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+                1.0, 0.0, 0.0, 0.0, 
+                0.0, 1.0, 0.0, 0.0, 
+                0.0, 0.0, 1.0, 0.0, 
+                0.0, 0.0, 0.0, 1.0,
             ];
 
             let transform_loc = gl::GetUniformLocation(
@@ -269,12 +287,23 @@ fn main() {
         // The main rendering loop
         let first_frame_time = std::time::Instant::now();
         let mut previous_frame_time = first_frame_time;
+
+        let osc_loc = unsafe {
+            gl::GetUniformLocation(simple_shader.program_id, b"oscValue\0".as_ptr() as *const _)
+        };
+
         loop {
             // Compute time passed since the previous frame and since the start of the program
             let now = std::time::Instant::now();
             let elapsed = now.duration_since(first_frame_time).as_secs_f32();
             let delta_time = now.duration_since(previous_frame_time).as_secs_f32();
             previous_frame_time = now;
+
+            let osc_value = elapsed.sin();
+
+            unsafe {
+                gl::Uniform1f(osc_loc, osc_value);
+            }
 
             // Handle resize events
             if let Ok(mut new_size) = window_size.lock() {
