@@ -265,21 +265,13 @@ fn main() {
 
         unsafe { simple_shader.activate() };
 
-        unsafe {
-            let identity_matrix: [f32; 16] = [
-                1.0, 0.0, 0.0, 0.0, 
-                0.0, 1.0, 0.0, 0.0, 
-                0.0, 0.0, 1.0, 0.0, 
-                0.0, 0.0, 0.0, 1.0,
-            ];
-
-            let transform_loc = gl::GetUniformLocation(
-                simple_shader.program_id,
-                b"transformMatrix\0".as_ptr() as *const _,
-            );
-
-            gl::UniformMatrix4fv(transform_loc, 1, gl::FALSE, identity_matrix.as_ptr());
-        }
+        // Excercise2 Task4 Part b)
+        let projection_matrix = glm::perspective(
+            window_aspect_ratio,
+            45.0_f32.to_radians(),
+            1.0,
+            100.0,
+        );
 
         // Used to demonstrate keyboard handling for exercise 2.
         let mut _arbitrary_number = 0.0; // feel free to remove
@@ -299,6 +291,7 @@ fn main() {
             let delta_time = now.duration_since(previous_frame_time).as_secs_f32();
             previous_frame_time = now;
 
+            // Used for Excercise2 Task3
             let osc_value = elapsed.sin();
 
             unsafe {
@@ -346,9 +339,28 @@ fn main() {
 
             // == // Please compute camera transforms here (exercise 2 & 3)
 
+            // Excercise2 Task4 Part b)
+            let translation_matrix = glm::translate(
+                &glm::Mat4::identity(),
+                &glm::vec3(0.0, 0.0, -10.0),
+            );
+        
+            let combined_matrix = projection_matrix * translation_matrix;
+        
+            unsafe {
+                let transform_loc = gl::GetUniformLocation(
+                    simple_shader.program_id,
+                    b"transformMatrix\0".as_ptr() as *const _,
+                );
+        
+                gl::UniformMatrix4fv(
+                    transform_loc, 1, gl::FALSE, combined_matrix.as_ptr()
+                );
+            }
+
             unsafe {
                 // == // Issue the necessary gl:: commands to draw your scene here
-                // Task 1c
+
                 gl::ClearColor(0.035, 0.046, 0.078, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
