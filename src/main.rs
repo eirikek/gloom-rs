@@ -284,6 +284,11 @@ fn main() {
             gl::GetUniformLocation(simple_shader.program_id, b"oscValue\0".as_ptr() as *const _)
         };
 
+        // Excercise2 Task4 Part c) (a)
+        let mut camera_position = glm::vec3(0.0, 0.0, 5.0);
+        let mut camera_rotation_x = 0.0_f32;
+        let mut camera_rotation_y = 0.0_f32;
+
         loop {
             // Compute time passed since the previous frame and since the start of the program
             let now = std::time::Instant::now();
@@ -298,37 +303,52 @@ fn main() {
                 gl::Uniform1f(osc_loc, osc_value);
             }
 
-            // Handle resize events
-            if let Ok(mut new_size) = window_size.lock() {
-                if new_size.2 {
-                    context.resize(glutin::dpi::PhysicalSize::new(new_size.0, new_size.1));
-                    window_aspect_ratio = new_size.0 as f32 / new_size.1 as f32;
-                    (*new_size).2 = false;
-                    println!("Window was resized to {}x{}", new_size.0, new_size.1);
-                    unsafe {
-                        gl::Viewport(0, 0, new_size.0 as i32, new_size.1 as i32);
-                    }
-                }
-            }
-
-            // Handle keyboard input
+            // Excercise2 Task4 Part c) (b)
             if let Ok(keys) = pressed_keys.lock() {
+                let move_speed = 5.0 * delta_time;
+                let rotate_speed = 90.0_f32.to_radians() * delta_time;
+            
                 for key in keys.iter() {
                     match key {
-                        // The VirtualKeyCode enum is defined here:
-                        //    https://docs.rs/winit/0.25.0/winit/event/enum.VirtualKeyCode.html
+                        // Translation keys (WASD + Space + LShift)
+                        VirtualKeyCode::W => {
+                            camera_position.z -= move_speed;
+                        }
+                        VirtualKeyCode::S => {
+                            camera_position.z += move_speed;
+                        }
                         VirtualKeyCode::A => {
-                            _arbitrary_number += delta_time;
+                            camera_position.x -= move_speed;
                         }
                         VirtualKeyCode::D => {
-                            _arbitrary_number -= delta_time;
+                            camera_position.x += move_speed;
                         }
-
-                        // default handler:
+                        VirtualKeyCode::Space => {
+                            camera_position.y += move_speed;
+                        }
+                        VirtualKeyCode::LShift => {
+                            camera_position.y -= move_speed;
+                        }
+            
+                        // Rotation keys (Arrow keys)
+                        VirtualKeyCode::Up => {
+                            camera_rotation_x += rotate_speed;
+                        }
+                        VirtualKeyCode::Down => {
+                            camera_rotation_x -= rotate_speed;
+                        }
+                        VirtualKeyCode::Left => {
+                            camera_rotation_y += rotate_speed;
+                        }
+                        VirtualKeyCode::Right => {
+                            camera_rotation_y -= rotate_speed;
+                        }
+            
                         _ => {}
                     }
                 }
             }
+            
             // Handle mouse movement. delta contains the x and y movement of the mouse since last frame in pixels
             if let Ok(mut delta) = mouse_delta.lock() {
                 // == // Optionally access the accumulated mouse movement between
@@ -339,14 +359,18 @@ fn main() {
 
             // == // Please compute camera transforms here (exercise 2 & 3)
 
-            // Excercise2 Task4 Part b)
-            let translation_matrix = glm::translate(
-                &glm::Mat4::identity(),
-                &glm::vec3(0.0, 0.0, -10.0),
-            );
-        
-            let combined_matrix = projection_matrix * translation_matrix;
-        
+            // Excercise2 Task4 Part c) (c) and (d)
+            let rotation_x_matrix = glm::rotation(camera_rotation_x, &glm::vec3(1.0, 0.0, 0.0));
+            let rotation_y_matrix = glm::rotation(camera_rotation_y, &glm::vec3(0.0, 1.0, 0.0));
+
+            let rotation_matrix = rotation_y_matrix * rotation_x_matrix;
+
+            let translation_matrix = glm::translate(&glm::Mat4::identity(), &-camera_position);
+
+            let view_matrix = rotation_matrix * translation_matrix;
+
+            let combined_matrix = projection_matrix * view_matrix;
+
             unsafe {
                 let transform_loc = gl::GetUniformLocation(
                     simple_shader.program_id,
@@ -357,6 +381,15 @@ fn main() {
                     transform_loc, 1, gl::FALSE, combined_matrix.as_ptr()
                 );
             }
+
+
+            /*  Excercise2 Task4 Part b)
+            let translation_matrix = glm::translate(
+                &glm::Mat4::identity(),
+                &glm::vec3(0.0, 0.0, -10.0),
+            );
+            
+            */
 
             unsafe {
                 // == // Issue the necessary gl:: commands to draw your scene here
