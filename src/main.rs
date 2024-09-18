@@ -289,6 +289,7 @@ fn main() {
         let mut camera_rotation_x = 0.0_f32;
         let mut camera_rotation_y = 0.0_f32;
 
+
         loop {
             // Compute time passed since the previous frame and since the start of the program
             let now = std::time::Instant::now();
@@ -382,7 +383,70 @@ fn main() {
                 );
             }
 
-
+            // Excercise2 Task5 Part a)
+            /*
+            The trick here involves using the cameras view matrix to determine the direction the camera is facing. 
+            We can extract the cameras forward, right, and up directions from the matrix to move accordingly.
+             
+             if let Ok(keys) = pressed_keys.lock() {
+                let move_speed = 5.0 * delta_time;
+                let rotate_speed = 90.0_f32.to_radians() * delta_time;
+            
+                let forward = glm::normalize(&glm::vec3(
+                    camera_rotation_y.sin() * camera_rotation_x.cos(),
+                    camera_rotation_x.sin(),
+                    camera_rotation_y.cos() * camera_rotation_x.cos(),
+                ));
+            
+                let right = glm::normalize(&glm::vec3(
+                    camera_rotation_y.cos(),
+                    0.0,
+                    -camera_rotation_y.sin(),
+                ));
+            
+                let up = glm::vec3(0.0, 1.0, 0.0);
+            
+                for key in keys.iter() {
+                    match key {
+                        VirtualKeyCode::W => {
+                            camera_position += forward * move_speed;
+                        }
+                        VirtualKeyCode::S => {
+                            camera_position -= forward * move_speed;
+                        }
+                        VirtualKeyCode::A => {
+                            camera_position -= right * move_speed;
+                        }
+                        VirtualKeyCode::D => {
+                            camera_position += right * move_speed;
+                        }
+                        VirtualKeyCode::Space => {
+                            camera_position += up * move_speed;
+                        }
+                        VirtualKeyCode::LShift => {
+                            camera_position -= up * move_speed;
+                        }
+                        VirtualKeyCode::Up => {
+                            camera_rotation_x += rotate_speed;
+                            camera_rotation_x = camera_rotation_x.clamp(-glm::half_pi::<f32>(), glm::half_pi::<f32>());
+                        }
+                        VirtualKeyCode::Down => {
+                            camera_rotation_x -= rotate_speed;
+                            camera_rotation_x = camera_rotation_x.clamp(-glm::half_pi::<f32>(), glm::half_pi::<f32>());
+                        }
+                        VirtualKeyCode::Left => {
+                            camera_rotation_y += rotate_speed;
+                        }
+                        VirtualKeyCode::Right => {
+                            camera_rotation_y -= rotate_speed;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            */
+            
+        
             /*  Excercise2 Task4 Part b)
             let translation_matrix = glm::translate(
                 &glm::Mat4::identity(),
