@@ -14,6 +14,7 @@ use std::{mem, os::raw::c_void, ptr};
 
 mod shader;
 mod util;
+mod mesh;
 
 use glutin::event::{
     DeviceEvent,
@@ -57,16 +58,19 @@ fn offset<T>(n: u32) -> *const c_void {
 // Get a null pointer (equivalent to an offset of 0)
 // ptr::null()
 
-unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>) -> u32 {
+unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>, normals: &Vec<f32>,) -> u32 {
     unsafe {
         let mut vao = 0;
         let mut vbo = 0;
         let mut ibo = 0;
         let mut cbo = 0;
+        let mut nbo = 0;
+        
 
         gl::GenVertexArrays(1, &mut vao);
         gl::BindVertexArray(vao);
 
+        // Vertex Buffer Object
         gl::GenBuffers(1, &mut vbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
 
@@ -87,6 +91,7 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>)
         );
         gl::EnableVertexAttribArray(0);
 
+        // Index Buffer Object
         gl::GenBuffers(1, &mut ibo);
         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo);
 
@@ -97,6 +102,7 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>)
             gl::STATIC_DRAW,
         );
 
+        // Color Buffer Object
         gl::GenBuffers(1, &mut cbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, cbo);
 
@@ -118,41 +124,29 @@ unsafe fn create_vao(vertices: &Vec<f32>, indices: &Vec<u32>, colors: &Vec<f32>)
 
         gl::EnableVertexAttribArray(1);
 
+        // Normal Buffer Object
+        gl::GenBuffers(1, &mut nbo);
+        gl::BindBuffer(gl::ARRAY_BUFFER, nbo);
+        gl::BufferData(
+            gl::ARRAY_BUFFER,
+            byte_size_of_array(normals),
+            pointer_to_array(normals),
+            gl::STATIC_DRAW,
+        );
+        gl::VertexAttribPointer(
+            2,
+            3,
+            gl::FLOAT,
+            gl::FALSE,
+            (3 * size_of::<f32>()) as i32,
+            ptr::null(),
+        );
+        gl::EnableVertexAttribArray(2);
+
         gl::BindVertexArray(0);
 
         vao
     }
-}
-
-fn generate_circle_vertices(radius: f32, num_segments: u32) -> (Vec<f32>, Vec<u32>) {
-    let mut vertices: Vec<f32> = Vec::new();
-    let mut indices: Vec<u32> = Vec::new();
-
-    vertices.push(0.0);
-    vertices.push(0.0);
-    vertices.push(0.0);
-
-    for i in 0..=num_segments {
-        let theta = 2.0 * std::f32::consts::PI * i as f32 / num_segments as f32;
-        let x = radius * theta.cos();
-        let y = radius * theta.sin();
-
-        vertices.push(x);
-        vertices.push(y);
-        vertices.push(0.0);
-
-        if i > 0 {
-            indices.push(0);
-            indices.push(i);
-            indices.push(i + 1);
-        }
-    }
-
-    indices.push(0);
-    indices.push(num_segments);
-    indices.push(1);
-
-    (vertices, indices)
 }
 
 fn main() {
@@ -224,37 +218,16 @@ fn main() {
             );
         }
 
-        let vertices: Vec<f32> = vec![
-            -0.8, -0.1, 0.5, 
-            0.2, -0.1, 0.5, 
-            -0.3, 0.8, 0.5, 
-            
-            -0.2, -0.1, -0.5, 
-            0.8, -0.1, -0.5,
-            0.3, 0.8, -0.5, 
-            
-            -0.45, -0.55, 0.0, 
-            0.45, -0.55, 0.0, 
-            0.0, 0.25, 0.0,
-        ];
+        let terrain_mesh = mesh::Terrain::load("resources/lunarsurface.obj");
 
-        let colors: Vec<f32> = vec![
-            0.0, 0.0, 1.0, 0.5, 
-            0.0, 0.0, 1.0, 0.5, 
-            0.0, 0.0, 1.0, 0.5, 
-            
-            1.0, 0.0, 0.0, 0.5, 
-            1.0, 0.0, 0.0, 0.5, 
-            1.0, 0.0, 0.0, 0.5, 
-            
-            0.0, 1.0, 0.0, 0.5, 
-            0.0, 1.0, 0.0, 0.5, 
-            0.0, 1.0, 0.0, 0.5,
-        ];
-
-        let indices: Vec<u32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
-
-        let my_vao = unsafe { create_vao(&vertices, &indices, &colors) };
+        let terrain_vao = unsafe {
+            create_vao(
+                &terrain_mesh.vertices,
+                &terrain_mesh.indices,
+                &terrain_mesh.colors,
+                &terrain_mesh.normals,
+            )
+        };
 
         let simple_shader = unsafe {
             shader::ShaderBuilder::new()
@@ -270,7 +243,7 @@ fn main() {
             window_aspect_ratio,
             45.0_f32.to_radians(),
             1.0,
-            100.0,
+            1000.0,
         );
 
         // Used to demonstrate keyboard handling for exercise 2.
@@ -279,10 +252,6 @@ fn main() {
         // The main rendering loop
         let first_frame_time = std::time::Instant::now();
         let mut previous_frame_time = first_frame_time;
-
-        let osc_loc = unsafe {
-            gl::GetUniformLocation(simple_shader.program_id, b"oscValue\0".as_ptr() as *const _)
-        };
 
         // Excercise2 Task4 Part c) (a)
         let mut camera_position = glm::vec3(0.0, 0.0, 5.0);
@@ -297,16 +266,9 @@ fn main() {
             let delta_time = now.duration_since(previous_frame_time).as_secs_f32();
             previous_frame_time = now;
 
-            // Used for Excercise2 Task3
-            let osc_value = elapsed.sin();
-
-            unsafe {
-                gl::Uniform1f(osc_loc, osc_value);
-            }
-
             // Excercise2 Task4 Part c) (b)
             if let Ok(keys) = pressed_keys.lock() {
-                let move_speed = 5.0 * delta_time;
+                let move_speed = 50.0 * delta_time;
                 let rotate_speed = 90.0_f32.to_radians() * delta_time;
             
                 for key in keys.iter() {
@@ -339,10 +301,10 @@ fn main() {
                             camera_rotation_x -= rotate_speed;
                         }
                         VirtualKeyCode::Left => {
-                            camera_rotation_y += rotate_speed;
+                            camera_rotation_y -= rotate_speed;
                         }
                         VirtualKeyCode::Right => {
-                            camera_rotation_y -= rotate_speed;
+                            camera_rotation_y += rotate_speed;
                         }
             
                         _ => {}
@@ -360,7 +322,6 @@ fn main() {
 
             // == // Please compute camera transforms here (exercise 2 & 3)
 
-            // Excercise2 Task4 Part c) (c) and (d)
             let rotation_x_matrix = glm::rotation(camera_rotation_x, &glm::vec3(1.0, 0.0, 0.0));
             let rotation_y_matrix = glm::rotation(camera_rotation_y, &glm::vec3(0.0, 1.0, 0.0));
 
@@ -383,77 +344,6 @@ fn main() {
                 );
             }
 
-            // Excercise2 Task5 Part a)
-            /*
-            The trick here involves using the cameras view matrix to determine the direction the camera is facing. 
-            We can extract the cameras forward, right, and up directions from the matrix to move accordingly.
-             
-             if let Ok(keys) = pressed_keys.lock() {
-                let move_speed = 5.0 * delta_time;
-                let rotate_speed = 90.0_f32.to_radians() * delta_time;
-            
-                let forward = glm::normalize(&glm::vec3(
-                    camera_rotation_y.sin() * camera_rotation_x.cos(),
-                    camera_rotation_x.sin(),
-                    camera_rotation_y.cos() * camera_rotation_x.cos(),
-                ));
-            
-                let right = glm::normalize(&glm::vec3(
-                    camera_rotation_y.cos(),
-                    0.0,
-                    -camera_rotation_y.sin(),
-                ));
-            
-                let up = glm::vec3(0.0, 1.0, 0.0);
-            
-                for key in keys.iter() {
-                    match key {
-                        VirtualKeyCode::W => {
-                            camera_position += forward * move_speed;
-                        }
-                        VirtualKeyCode::S => {
-                            camera_position -= forward * move_speed;
-                        }
-                        VirtualKeyCode::A => {
-                            camera_position -= right * move_speed;
-                        }
-                        VirtualKeyCode::D => {
-                            camera_position += right * move_speed;
-                        }
-                        VirtualKeyCode::Space => {
-                            camera_position += up * move_speed;
-                        }
-                        VirtualKeyCode::LShift => {
-                            camera_position -= up * move_speed;
-                        }
-                        VirtualKeyCode::Up => {
-                            camera_rotation_x += rotate_speed;
-                            camera_rotation_x = camera_rotation_x.clamp(-glm::half_pi::<f32>(), glm::half_pi::<f32>());
-                        }
-                        VirtualKeyCode::Down => {
-                            camera_rotation_x -= rotate_speed;
-                            camera_rotation_x = camera_rotation_x.clamp(-glm::half_pi::<f32>(), glm::half_pi::<f32>());
-                        }
-                        VirtualKeyCode::Left => {
-                            camera_rotation_y += rotate_speed;
-                        }
-                        VirtualKeyCode::Right => {
-                            camera_rotation_y -= rotate_speed;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            */
-            
-        
-            /*  Excercise2 Task4 Part b)
-            let translation_matrix = glm::translate(
-                &glm::Mat4::identity(),
-                &glm::vec3(0.0, 0.0, -10.0),
-            );
-            
-            */
 
             unsafe {
                 // == // Issue the necessary gl:: commands to draw your scene here
@@ -461,10 +351,10 @@ fn main() {
                 gl::ClearColor(0.035, 0.046, 0.078, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-                gl::BindVertexArray(my_vao);
+                gl::BindVertexArray(terrain_vao);
                 gl::DrawElements(
                     gl::TRIANGLES,
-                    indices.len() as i32,
+                    terrain_mesh.index_count as i32,
                     gl::UNSIGNED_INT,
                     std::ptr::null(),
                 );
