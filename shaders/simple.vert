@@ -9,10 +9,13 @@ out vec3 fragNormal;
 
 uniform mat4 transformMatrix;
 
+uniform mat4 modelMatrix;
+
 void main()
 {
     gl_Position = transformMatrix * vec4(position, 1.0);
     
     fragColor = vertexColor;
-    fragNormal = normal;
+    
+    fragNormal = normalize(mat3(modelMatrix) * normal);
 }

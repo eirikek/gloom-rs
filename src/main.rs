@@ -392,33 +392,37 @@ fn main() {
                     * glm::rotation(node.rotation.y, &glm::vec3(0.0, 1.0, 0.0))
                     * glm::rotation(node.rotation.z, &glm::vec3(0.0, 0.0, 1.0));
                 let local_scaling = glm::scaling(&node.scale);
-                
+            
                 let translation_to_origin = glm::translation(&-node.reference_point);
                 let translation_back = glm::translation(&node.reference_point);
-                
+            
                 let local_transform = local_translation 
                     * translation_back 
                     * local_rotation 
                     * translation_to_origin 
                     * local_scaling;
-
+            
                 let combined_transform = transformation_so_far * local_transform;
-
+            
                 let mvp_matrix = view_projection_matrix * combined_transform;
-
+            
                 let transform_loc = gl::GetUniformLocation(shader_program, b"transformMatrix\0".as_ptr() as *const _);
                 gl::UniformMatrix4fv(transform_loc, 1, gl::FALSE, mvp_matrix.as_ptr());
-
+            
+                let model_loc = gl::GetUniformLocation(shader_program, b"modelMatrix\0".as_ptr() as *const _);
+                gl::UniformMatrix4fv(model_loc, 1, gl::FALSE, combined_transform.as_ptr());
+            
                 if node.vao_id != 0 {
                     gl::BindVertexArray(node.vao_id);
                     gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, std::ptr::null());
                     gl::BindVertexArray(0);
                 }
-
+            
                 for &child in &node.children {
                     draw_scene(&*child, view_projection_matrix, &combined_transform, shader_program);
                 }
             }
+            
             
             
             unsafe {
