@@ -331,7 +331,7 @@ fn main() {
         let first_frame_time = std::time::Instant::now();
         let mut previous_frame_time = first_frame_time;
 
-        // Excercise2 Task4 Part c) (a)
+        // Excercise2 Task4 Part c) (a) Not used anymore
         let mut camera_position = glm::vec3(0.0, 0.0, 5.0);
         let mut camera_rotation_x = 0.0_f32;
         let mut camera_rotation_y = 0.0_f32;
@@ -343,19 +343,16 @@ fn main() {
             let delta_time = now.duration_since(previous_frame_time).as_secs_f32();
             previous_frame_time = now;
 
-            // Helicopter movement speed and rotation speed
-            let helicopter_move_speed = 50.0 * delta_time; // Adjust the speed as needed
+            let helicopter_move_speed = 50.0 * delta_time;
             let helicopter_rotate_speed = 90.0_f32.to_radians() * delta_time;
-            let helicopter_tilt_speed = 1.0 * delta_time;
 
             // Select the first helicopter for control (helicopters[0])
-            let mut controlled_helicopter = helicopters[0].as_mut(); // First helicopter
-            let mut controlled_body_node = controlled_helicopter.get_child(0); // Get the helicopter's body node
-
+            let mut controlled_helicopter = helicopters[0].as_mut();
+            let controlled_body_node = controlled_helicopter.get_child(0);
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
                     match key {
-                        // Move forward (Reverse the W direction)
+                        // Move forward and backward
                         VirtualKeyCode::W => {
                             let forward = glm::vec3(
                                 -controlled_body_node.rotation.y.sin(),
@@ -365,7 +362,6 @@ fn main() {
                             controlled_body_node.position += forward * helicopter_move_speed;
                         }
 
-                        // Move backward (Reverse the S direction)
                         VirtualKeyCode::S => {
                             let backward = glm::vec3(
                                 controlled_body_node.rotation.y.sin(),
@@ -375,107 +371,96 @@ fn main() {
                             controlled_body_node.position += backward * helicopter_move_speed;
                         }
 
-                        // Move left (strafe) and tilt left
-VirtualKeyCode::A => {
-    let left = glm::vec3(
-        -controlled_body_node.rotation.y.cos(),
-        0.0,
-        controlled_body_node.rotation.y.sin(),
-    );
-    controlled_body_node.position += left * helicopter_move_speed * 0.5;  // Slower strafe
+                        // Move left and riht (strafe) + tilting
+                        VirtualKeyCode::A => {
+                            let left = glm::vec3(
+                                -controlled_body_node.rotation.y.cos(),
+                                0.0,
+                                controlled_body_node.rotation.y.sin(),
+                            );
+                            controlled_body_node.position += left * helicopter_move_speed * 0.7;
 
-    // Gradually tilt to the left
-    controlled_body_node.rotation.z += (0.2 - controlled_body_node.rotation.z) * 0.1; // Smooth tilt left
-}
+                            controlled_body_node.rotation.z +=
+                                (0.2 - controlled_body_node.rotation.z) * 0.1;
+                        }
 
-// Move right (strafe) and tilt right
-VirtualKeyCode::D => {
-    let right = glm::vec3(
-        controlled_body_node.rotation.y.cos(),
-        0.0,
-        -controlled_body_node.rotation.y.sin(),
-    );
-    controlled_body_node.position += right * helicopter_move_speed * 0.5;  // Slower strafe
+                        // Move right (strafe) and tilt right
+                        VirtualKeyCode::D => {
+                            let right = glm::vec3(
+                                controlled_body_node.rotation.y.cos(),
+                                0.0,
+                                -controlled_body_node.rotation.y.sin(),
+                            );
+                            controlled_body_node.position += right * helicopter_move_speed * 0.7;
 
-    // Gradually tilt to the right
-    controlled_body_node.rotation.z += (-0.2 - controlled_body_node.rotation.z) * 0.1; // Smooth tilt right
-}
+                            controlled_body_node.rotation.z +=
+                                (-0.2 - controlled_body_node.rotation.z) * 0.1; 
+                        }
 
-                        // Move up (Space -> Y increases)
+                        // Move up and down
                         VirtualKeyCode::Space => {
                             controlled_body_node.position.y += helicopter_move_speed;
-                            // Move upwards
                         }
 
-                        // Move down (Shift -> Y decreases)
                         VirtualKeyCode::LShift => {
                             controlled_body_node.position.y -= helicopter_move_speed;
-                            // Move downwards
                         }
 
-                        // Rotate left (yaw left)
+                        // Rotate left and right
                         VirtualKeyCode::Left => {
                             controlled_body_node.rotation.y += helicopter_rotate_speed;
                         }
 
-                        // Rotate right (yaw right)
                         VirtualKeyCode::Right => {
                             controlled_body_node.rotation.y -= helicopter_rotate_speed;
                         }
 
-                        // Tilt forward (optional for realism, slow down the tilt speed)
-                       // Tilt forward (nose down)
-VirtualKeyCode::Up => {
-    // Apply tilt relative to the helicopter's local axes
-    controlled_body_node.rotation.x += (-0.2 - controlled_body_node.rotation.x) * 0.1;  // Smooth tilt forward
-}
+                        // Tilt forward and backward (I have not implemented intrinsic rotations so this will be a bit weird
+                        VirtualKeyCode::Up => {
+                            controlled_body_node.rotation.x +=
+                                (-0.2 - controlled_body_node.rotation.x) * 0.1;
+                        }
 
-// Tilt backward (nose up)
-VirtualKeyCode::Down => {
-    // Apply tilt relative to the helicopter's local axes
-    controlled_body_node.rotation.x += (0.2 - controlled_body_node.rotation.x) * 0.1;  // Smooth tilt backward
-}
+                        VirtualKeyCode::Down => {
+                            controlled_body_node.rotation.x +=
+                                (0.2 - controlled_body_node.rotation.x) * 0.1;
+                        }
 
                         _ => {}
                     }
                 }
 
-                // Reset tilt (z-axis) when not moving left/right
+                // Reset tilting smoothly
                 if !keys.contains(&VirtualKeyCode::A) && !keys.contains(&VirtualKeyCode::D) {
-                    controlled_body_node.rotation.z *= 0.9; // Gradually return to neutral position
+                    controlled_body_node.rotation.z *= 0.9;
                 }
 
-                // Reset tilt (x-axis) when not moving forward/backward
                 if !keys.contains(&VirtualKeyCode::Up) && !keys.contains(&VirtualKeyCode::Down) {
-                    controlled_body_node.rotation.x *= 0.9; // Gradually return to neutral position
+                    controlled_body_node.rotation.x *= 0.9;
                 }
 
-                // Reset tilt when neither A nor D is pressed
-if !keys.contains(&VirtualKeyCode::A) && !keys.contains(&VirtualKeyCode::D) {
-    controlled_body_node.rotation.z *= 0.9;  // Gradually return tilt to neutral
-}
-
+                if !keys.contains(&VirtualKeyCode::A) && !keys.contains(&VirtualKeyCode::D) {
+                    controlled_body_node.rotation.z *= 0.9;
+                }
             }
 
-            // Update the camera position to turn with the helicopter (yaw-based camera offset)
-            let camera_distance = 30.0; // Adjust for desired camera distance
-            let camera_height = 5.0; // Adjust for desired camera height
+            let camera_distance = 30.0;
+            let camera_height = 5.0;
 
             // Calculate the camera position behind the helicopter, based on its yaw
             let camera_offset = glm::vec3(
-                controlled_body_node.rotation.y.sin() * camera_distance, // Use helicopter's yaw for X/Z positioning
-                camera_height,                                           // Keep the height fixed
+                controlled_body_node.rotation.y.sin() * camera_distance,
+                camera_height,
                 controlled_body_node.rotation.y.cos() * camera_distance,
             );
 
-            // Set the camera position behind the controlled helicopter
             camera_position = controlled_body_node.position + camera_offset;
 
             // Make the camera look at the helicopter
             let look_at_matrix = glm::look_at(
                 &camera_position,
-                &(controlled_body_node.position + glm::vec3(0.0, 5.0, 0.0)), // Look slightly above the helicopter
-                &glm::vec3(0.0, 1.0, 0.0),                                   // Up vector
+                &(controlled_body_node.position + glm::vec3(0.0, 5.0, 0.0)),
+                &glm::vec3(0.0, 1.0, 0.0),
             );
 
             // Handle mouse movement. delta contains the x and y movement of the mouse since last frame in pixels
@@ -501,8 +486,8 @@ if !keys.contains(&VirtualKeyCode::A) && !keys.contains(&VirtualKeyCode::D) {
                 let tail_rotor_node = body_node.get_child(2);
                 tail_rotor_node.rotation.x = helicopter_elapsed * 20.0;
 
+                // The other helicopters that we are not steering should follow path
                 if i != 0 {
-                    // Animate the other helicopters along a path
                     let heading = toolbox::simple_heading_animation(helicopter_elapsed);
                     body_node.position.x = heading.x;
                     body_node.position.z = heading.z;
