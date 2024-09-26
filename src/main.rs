@@ -349,6 +349,33 @@ fn main() {
             // Select the first helicopter for control (helicopters[0])
             let mut controlled_helicopter = helicopters[0].as_mut();
             let controlled_body_node = controlled_helicopter.get_child(0);
+
+            // Had to split the scope of the borrows - retrieve and work with door_node in a separate scope before mutating controlled_body_node
+            {
+                let door_node = controlled_body_node.get_child(0);
+
+                // Handle door open/close logic
+                if let Ok(keys) = pressed_keys.lock() {
+                    for key in keys.iter() {
+                        match key {
+                            VirtualKeyCode::O => {
+                                door_node.position.z += 0.5;
+                                if door_node.position.z > 2.0 {
+                                    door_node.position.z = 2.0;
+                                }
+                            }
+                            VirtualKeyCode::C => {
+                                door_node.position.z -= 0.5;
+                                if door_node.position.z < 0.0 {
+                                    door_node.position.z = 0.0;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
                     match key {
@@ -394,7 +421,7 @@ fn main() {
                             controlled_body_node.position += right * helicopter_move_speed * 0.7;
 
                             controlled_body_node.rotation.z +=
-                                (-0.2 - controlled_body_node.rotation.z) * 0.1; 
+                                (-0.2 - controlled_body_node.rotation.z) * 0.1;
                         }
 
                         // Move up and down
@@ -447,7 +474,7 @@ fn main() {
             let camera_distance = 30.0;
             let camera_height = 5.0;
 
-            // Calculate the camera position behind the helicopter, based on its yaw
+            // Calculate the camera position behind the helicopter based on its yaw
             let camera_offset = glm::vec3(
                 controlled_body_node.rotation.y.sin() * camera_distance,
                 camera_height,
@@ -486,7 +513,7 @@ fn main() {
                 let tail_rotor_node = body_node.get_child(2);
                 tail_rotor_node.rotation.x = helicopter_elapsed * 20.0;
 
-                // The other helicopters that we are not steering should follow path
+                // Make the other helicopters apart from the one we are controlling follow path
                 if i != 0 {
                     let heading = toolbox::simple_heading_animation(helicopter_elapsed);
                     body_node.position.x = heading.x;
